@@ -1,6 +1,9 @@
 %Define document class
 \documentclass[twocolumn]{aastex631}
 \usepackage{showyourwork}
+\newcommand{\code}[0]{\texttt{SilkScreen}}
+\newcommand{\artpop}[0]{\texttt{ArtPop}}
+\newcommand{\sbi}[0]{\texttt{sbi}}
 
 % Begin!
 \begin{document}
@@ -8,51 +11,134 @@
 % Title
 \title{Constraining the Distances and Physical Properties of Semiresolved Galaxies with Simulation Based Inference}
 
-% Author list
-\author{@tbmiller-astro}
+\author[0000-0001-8367-6265]{Tim B. Miller}
+\affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
+\affiliation{Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA), Northwestern University,1800 Sherman Ave, Evanston, IL 60201, USA}
+\author{Imad Pasha}
+\affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
 
-% Abstract with filler text
+\author[0000-0002-5283-933X]{Ava Polzin}
+\affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
+
+\author{Pieter G. van Dokkum}
+\affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
+
+%\author{Shany Danieli}??
+%\author{Johnny Greco}??
+
 \begin{abstract}
-    wow I wrote this in overleaf
-    Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
-    Ut purus elit, vestibulum ut, placerat ac, adipiscing vitae, felis.
-    Curabitur dictum gravida mauris, consectetuer id, vulputate a, magna.
-    Donec vehicula augue eu neque, morbi tristique senectus et netus et.
-    Mauris ut leo, cras viverra metus rhoncus sem, nulla et lectus vestibulum.
-    Phasellus eu tellus sit amet tortor gravida placerat.
-    Integer sapien est, iaculis in, pretium quis, viverra ac, nunc.
-    Praesent eget sem vel leo ultrices bibendum.
-    Aenean faucibus, morbi dolor nulla, malesuada eu, pulvinar at, mollis ac.
-    Curabitur auctor semper nulla donec varius orci eget risus.
-    Duis nibh mi, congue eu, accumsan eleifend, sagittis quis, diam.
-    Duis eget orci sit amet orci dignissim rutrum.
+%% Re-write
+We present the \code{} package, which can accurately recover properties of globular clusters and near-field dwarf galaxies ($D\lesssim 20$ Mpc), including stellar mass, distance, and metallicity directly from imaging from various wide field surveys. \code{} includes models created via simulation-based inference (sbi), which trains a neural network to directly estimate the posterior that maps these properties, as well as details of the survey (e.g., PSF, exposure depth), to galaxy images and estimates the uncertainties in this mapping. We train this network using images simulated by the \artpop{} package, which can create realistic, physically-motivated images of dwarf galaxies and inject them into sky images, for several widely-used surveys. Once trained on images spanning the range of expected properties, this network can sample from the estimated posterior to make predictions for new galaxy inputs in a matter of seconds without ever calling \artpop{}, a vast improvement over the tens-to-hundreds of hours required to perform a classical Bayesian fit to the same data using MCMC. Furthermore, the method allows the maximal extraction of resolved, 2D information about each galaxy --- information which must be represented by summary statistics when using traditional methods. In this first paper, we present the methodology and test metrics, and provide the package publicly. 
+
 \end{abstract}
 
-% Main body with filler text
-\section{Introduction}
-\label{sec:intro}
+\keywords{Machine Learning}
 
-Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
-Ut purus elit, vestibulum ut, placerat ac, adipiscing vitae, felis.
-Curabitur dictum gravida mauris, consectetuer id, vulputate a, magna.
-Donec vehicula augue eu neque, morbi tristique senectus et netus et.
-Mauris ut leo, cras viverra metus rhoncus sem, nulla et lectus vestibulum.
-Phasellus eu tellus sit amet tortor gravida placerat.
-Integer sapien est, iaculis in, pretium quis, viverra ac, nunc.
-Praesent eget sem vel leo ultrices bibendum.
-Aenean faucibus, morbi dolor nulla, malesuada eu, pulvinar at, mollis ac.
-Curabitur auctor semper nulla donec varius orci eget risus.
-Duis nibh mi, congue eu, accumsan eleifend, sagittis quis, diam.
-Duis eget orci sit amet orci dignissim rutrum.
 
-Nam dui ligula, fringilla a, euismod sodales, sollici- tudin vel, wisi.
-Morbi auctor lorem non justo, nam lacus libero, pretium at, lobortis vitae.
-Donec aliquet, tortor sed accumsan bibendum, erat ligula aliquet magna.
-Morbi ac orci et nisl hendrerit mollis, suspendisse ut massa, cras nec ante.
-Pellentesque a nulla cum sociis natoque penatibus et magnis dis parturient.
-Aliquam tincidunt urna, nulla ullamcorper vestibulum turpis.
-Pellentesque cursus luctus mauris \citep{Luger2021}.
 
-\bibliography{bib}
+\section{Introduction} \label{sec:intro}
+
+The study of dwarf galaxies, loosely defined here as galaxies with stellar mass $10^5<M_{*}<10^9$ $M_{\odot}$, represents an exciting avenue to study the physics of galaxy formation and dark matter. They are typically more dominated by dark matter and have fewer baryonic processes than a typical $L_{*}$ galaxy, making them useful sites to distinguish varying dark matter models. A primary challenge to such studies is the accumulation of local samples of such galaxies with known distances (enabling further studies of intrinsic properties, such as mass). While the surface brightness depths of previous surveys have limited the joint mass-distance discovery space of dwarf galaxies, upcoming surveys, including the Legacy Survey of Space and Time (LSST) at Vera Ruben Observatory and those that will be carried out by the Roman Space Telescope bring the promise of many new identified ``fuzzy blobs'' in the local universe. 
+
+These discoveries will enable a new era of dwarf galaxy studies, but will be initially limited by the fact that these galaxies will have unknown distances, masses, and metallicities. While the latter two can be measured via (expensive) spectroscopy, the distance to these systems will remain unconstrained. Current methods for deriving these distances include surface brightness fluctuations (SBF) and tip of the red giant branch (TRGB) measurements. The latter is only possible with resolved RBG stars, meaning, in general, that high-resolution space-based data must be gathered (with, e.g., \textit{HST} or \textit{JWST}), making the follow up of large numbers of candidate galaxies a challenge. SBF can be carried out using the wide-field discovery data, but relies on a selection of metallicity and cannot marginalize over joint uncertainties in mass and metallicity when determining distances.
+
+An additionally, as-yet unexplored avenue for constraining the critical properties of distance, mass, and metallicity for wide-field dwarf galaxy candidates is the use of forward modeling. Forward modeling; i.e., generating realistic models from the parameters of interested and comparing these models to the data to determine a best-fit (or posterior space) has been successfully employed in a variety of astrophysical contexts (cite). Forward modeling is, at current, most often paired with Bayesian Frameworks in order to find not only singular best fitting models, but parametrize realistic uncertainties on the model parameter of interest (and to marginalize over those which are not of interest).
+
+Bayesian inference requires the imposition of priors on the parameters of interest (though these need not be restrictive), and has the advantage of producing trustworthy uncertainties on the parameters of interest --- a trait lacking in simple grid-based $\chi^2$ minimization schemes. Bayesian inference relies on Bayes theorem, which states that 
+\begin{equation}\label{bayes}
+    p(\theta|x) = \frac{p(x|\theta)p(\theta)}{p(x)}.
+\end{equation}
+In this equation, $p(\theta|x)$ is known as the \textit{posterior} distribution, and represents the quantity of interest: the probability of some vector of model parameters $\theta$ given the observed data $x$ on hand. By finding the $\theta$ which maximizes this quantity, one can find the model that ``best" fits the data. On the right hand side, $p(x|\theta)$ is known as the \textit{likelihood}, and describes the probability of our data given some vector of parameters $x$. The likelihood can be parameterized in different ways; a simple likelihood might just be the measured $\chi^2$ between a model and data (i.e., an assumption that the likelihood is Gaussian). $p(\theta)$ is the \textit{prior}, and represents the distributions from which vectors of $\theta$ will be drawn. A simple prior might be a top-hat (all values of $\theta$ equally likely between some bounds) or a Gaussian with a central value and standard deviation. In the denominator, $p(x)$ is known as the \textit{evidence}, and is generally challenging to compute --- some Bayesian methods do so, others do not, as it is a normalizing constant and the left hand side need only be maximized. Because the posterior is a distribution, the multi-dimensional surface around the maximally likely vector of $\theta$ can be used to estimate the uncertainty in the parameters in a robust way. 
+
+The code Prospector, for example, uses the FSPS spectral synthesis code to generate realistic models of galaxy spectral energy distributions, then compares these models to gathered photometry and spectroscopy in a Bayesian framework using MCMC to sample the posterior space of the model parameters of interest (e.g., stellar mass, metallicity, star formation rate and history), while marginalizing over nuisance parameters. 
+
+Such Bayesian frameworks, which have become ubiquitous across the last decade, have generally focused on a certain class of inference problem in which an explicit likelihood function can be written down. In the case of a galaxy SED fit, this might be a chi-squared measure between the model photometry and the data photometry. An alternative class of inference problem has defied such frameworks: those for which an explicit likelihood cannot be written. 
+
+The problem of inferring the distance, mass, and metallicity of unknown ``fuzzy blobs'' in wide field imaging is one such problem. However, tools currently exist which can forward model the appearance of such galaxies in their respective surveys. In particular, the \artpop{} code forward models stellar systems by drawing a stellar population from an IMF, placing stars spatially according to a given model (e.g., Sérsic), convolving with an observational PSF, injecting into realistic backgrounds, and then simulating observations for any telescope and observing conditions (see section BLANK for a more detailed summary). In short, for the stellar populations \artpop{} is designed to create, it can create a final image theoretically indistinguishable from one taken by the respective telescope of an object of those properties. 
+
+While this tool is powerful in its own right, it has, to date, not been used to actually \textit{fit} the properties of systems detected observationally. The reason, as described above, is that both the data and models (i.e., 2D images) represent stochastic draws from some distribution of systems for which the underlying properties are the same. In this case, writing down an explicit likelihood function (e.g., the chi-squared between the pixels of a model image and a data image) is impossible (or nonsensical). Another way of stating this is that while tools like an SED simulator (like FSPS) have \textit{deterministic} outputs (and the data, correspondingly, has only noise associated with measurement), in the case of semi-resolved galaxy imaging, this is not the case.
+
+Simulation based inference is a novel and rapidly-developing suite of algorithms which leverage machine learning to directly ``learn" the posterior distribution not just of a single target with a single set of parameters, but for \textit{all} possible targets with \textit{all} possible parameters. This involves simulating many, many pairs of labels ($\theta$ vectors) and data (models), but only once. A machine learning model is then trained to learn the posterior, returning an object known as a \textit{neural density estimator} (NDE). When new data (i.e., real observations) are provided, the posterior can be directly sampled (extremely efficiently), providing, nominally, the same predictions and confidence intervals that would have been returned by an MCMC applied to the same data. 
+
+This method has the benefit of amortizing the heavy computational load --- that is, the costly computation is computed once, ahead of time. It has been used recently in a variety of astrophysics and physics contexts (cite). A key requirement of these methods is that the physical models created are nearly indistinguishable from the real data being used, and in particular, that the noise properties of the models are consistent with what is seen in the data. Thankfully, \artpop{} is well-suited to this task, producing mock observations which are expected to be extremely accurate to real data (cite). 
+
+A key advantage of this method for the use of \artpop{} in inference problems is that during the simulation stage, many instances of models will be created from the same input vector of parameters. By using a convolutional neural network (CNN) as an embedding network to perform the training directly on these images, we extract the maximal amount of information, yet additionally train the network to ignore the stochasticity present across models with the same input parameters. The generated summary statistics from this step are thus generated by (ideally) only the features in the image which distinguish models with \textit{different} parameters (i.e., different distances). 
+
+By directly learning the posterior, it can be sampled from rapidly. Once a set of simulations has been used to train the neural network and create the neural density estimator, real data can be input and posterior samples for the model parameters can be drawn in a matter of seconds. So long as the data and simulated data are, indeed, close enough in nature, one retrieves a fully Bayesian estimate of the model parameters. 
+
+It should be noted that, in adopting this framework for the problem of galaxy image inference, two primary avenues are available. We deem these the ``bespoke'' approach and the ``one model to rule them all'' approach. In the former, all three steps --- simulation, training, and sampling --- are carried out for individual targets. As such, the benefits of amortization are lost, but in contrast, models are only created which match all known properties of the data, e.g., PSF, position angle, Sérsic index. As a result, no simulations are ``wasted'' by being far from the true posterior for a given data image, and the constraints on the model parameters should be commensurately tighter. 
+
+Using a ``bespoke'' model tuned to the particular galaxy being fit imposes several requirements in this framework: it is time consuming, and requires the use of graphical processing units (GPUs) to support the training of the CNN (simulations need not be carried out on GPU). The feasibility of such an approach has improved dramatically in the past several years, particularly with the advent of cloud-based computing for which GPU access can be purchased relatively inexpensively.
+
+On the other hand, a ``one model to rule them all'' approach involves generating orders of magnitude more simulations in order to train the NDE to perform inferences on a much wider array of input data. This has the benefits of amortization --- the NDE could be trained on a supercomputer using many millions of simulations once, then used on any input data appropriately matched (e.g., right survey, for which images were taken with the same telescope under similar observing conditions). In this limit, all new images can be fit in a manner of seconds, though as a large portion of the posterior space would be ignored, the posteriors on individual parameters may be less constrained. 
+
+It worth noting that at no point is the task of model creation being entrusted to an neural network; rather, the relationship between model parameters and the generated images themselves is learned. 
+
+\section{The \code{} Framework}
+Basically this is combining simulation based inference with \artpop
+\subsection{Simulating Dwarf Galaxies}
+Mention that currently we have to use 'bespoke' simulations i.e. everything needs to be specified beforehand. Also mention the dwarf galaxy model and the simple stellar population model.
+
+\subsection{Simulation Based Inference}
+Need to discuss embedding net and sbi framework. Not sure how much detail to go into normalizing flows and explaining SBI here. Much of this information will probably go into the intro I imagine 
+
+Mention t-SNPE here.
+
+\section{Inference on a Mock Galaxy}
+Talk about performing inference on a simulated galaxy. Show recovered posteriors along with SBC benchmarks showing a well behaved posterior
+
+\section{Example Applications}
+\subsection{Halo Globular Clusters}
+\subsection{Dwarfs in the Sculptor Group}
+\subsection{Galaxies in HSC}
+
+\section{Current Limitations and Pitfalls}
+Oh so many things to discuss here: Paramterization of SFH, difficulty in training and producing well-calibrated posteriors, large computational cost of 'bespoke' galaxy models.
+
+\section{Future Outlook}
+First is a systematic benchmark of distances/stellar population properties against a known set of galaxies. Taking advantage of the amortization possibilities to build 'one model to rule them all' applicable to a whole survey etc. Honing in on stellar population properties of known galaxies with lots of data.
+
+\section{Summary}
+Really cool idea that I think will be super useful but a lot of work left to do.
+
+\section*{Acknowledgements}
+The authors would like to thank Aritra Ghosh for valuable discussions on the design, implementation and training of the Neural Posterior Estimator. TBM was supported by a CIERA Postdoctoral Fellowship.
+
+The Legacy Surveys consist of three individual and complementary projects: the Dark Energy Camera Legacy Survey (DECaLS; Proposal ID \#2014B-0404; PIs: David Schlegel and Arjun Dey), the Beijing-Arizona Sky Survey (BASS; NOAO Prop. ID \#2015A-0801; PIs: Zhou Xu and Xiaohui Fan), and the Mayall z-band Legacy Survey (MzLS; Prop. ID \#2016A-0453; PI: Arjun Dey). DECaLS, BASS and MzLS together include data obtained, respectively, at the Blanco telescope, Cerro Tololo Inter-American Observatory, NSF’s NOIRLab; the Bok telescope, Steward Observatory, University of Arizona; and the Mayall telescope, Kitt Peak National Observatory, NOIRLab. Pipeline processing and analyses of the data were supported by NOIRLab and the Lawrence Berkeley National Laboratory (LBNL). The Legacy Surveys project is honored to be permitted to conduct astronomical research on Iolkam Du’ag (Kitt Peak), a mountain with particular significance to the Tohono O’odham Nation.
+
+NOIRLab is operated by the Association of Universities for Research in Astronomy (AURA) under a cooperative agreement with the National Science Foundation. LBNL is managed by the Regents of the University of California under contract to the U.S. Department of Energy.
+
+This project used data obtained with the Dark Energy Camera (DECam), which was constructed by the Dark Energy Survey (DES) collaboration. Funding for the DES Projects has been provided by the U.S. Department of Energy, the U.S. National Science Foundation, the Ministry of Science and Education of Spain, the Science and Technology Facilities Council of the United Kingdom, the Higher Education Funding Council for England, the National Center for Supercomputing Applications at the University of Illinois at Urbana-Champaign, the Kavli Institute of Cosmological Physics at the University of Chicago, Center for Cosmology and Astro-Particle Physics at the Ohio State University, the Mitchell Institute for Fundamental Physics and Astronomy at Texas A\&M University, Financiadora de Estudos e Projetos, Fundacao Carlos Chagas Filho de Amparo, Financiadora de Estudos e Projetos, Fundacao Carlos Chagas Filho de Amparo a Pesquisa do Estado do Rio de Janeiro, Conselho Nacional de Desenvolvimento Cientifico e Tecnologico and the Ministerio da Ciencia, Tecnologia e Inovacao, the Deutsche Forschungsgemeinschaft and the Collaborating Institutions in the Dark Energy Survey. The Collaborating Institutions are Argonne National Laboratory, the University of California at Santa Cruz, the University of Cambridge, Centro de Investigaciones Energeticas, Medioambientales y Tecnologicas-Madrid, the University of Chicago, University College London, the DES-Brazil Consortium, the University of Edinburgh, the Eidgenossische Technische Hochschule (ETH) Zurich, Fermi National Accelerator Laboratory, the University of Illinois at Urbana-Champaign, the Institut de Ciencies de l’Espai (IEEC/CSIC), the Institut de Fisica d’Altes Energies, Lawrence Berkeley National Laboratory, the Ludwig Maximilians Universitat Munchen and the associated Excellence Cluster Universe, the University of Michigan, NSF’s NOIRLab, the University of Nottingham, the Ohio State University, the University of Pennsylvania, the University of Portsmouth, SLAC National Accelerator Laboratory, Stanford University, the University of Sussex, and Texas A\&M University.
+
+BASS is a key project of the Telescope Access Program (TAP), which has been funded by the National Astronomical Observatories of China, the Chinese Academy of Sciences (the Strategic Priority Research Program “The Emergence of Cosmological Structures” Grant \# XDB09000000), and the Special Fund for Astronomy from the Ministry of Finance. The BASS is also supported by the External Cooperation Program of Chinese Academy of Sciences (Grant \# 114A11KYSB20160057), and Chinese National Natural Science Foundation (Grant \# 12120101003, \# 11433005).
+
+The Legacy Survey team makes use of data products from the Near-Earth Object Wide-field Infrared Survey Explorer (NEOWISE), which is a project of the Jet Propulsion Laboratory/California Institute of Technology. NEOWISE is funded by the National Aeronautics and Space Administration.
+
+The Legacy Surveys imaging of the DESI footprint is supported by the Director, Office of Science, Office of High Energy Physics of the U.S. Department of Energy under Contract No. DE-AC02-05CH1123, by the National Energy Research Scientific Computing Center, a DOE Office of Science User Facility under the same contract; and by the U.S. National Science Foundation, Division of Astronomical Sciences under Contract No. AST-0950945 to NOAO.
+
+\bibliography{sample631}{}
+\bibliographystyle{aasjournal}
+
 
 \end{document}
+
+% End of file `sample631.tex'.
+
+\section{Artpop}
+\artpop{} is a pure-Python package developed to produce realistic images of dwarf galaxies as they would appear in various observational surveys. The code uses a modular structure to simulate the distribution of stars for systems of desired properties (e.g., mass and metallicity), and ``place them" in a survey (e.g., Hypersuprime-cam SSP) using the survey mirror aperture and focal length, exposure time, and sky brightness. This galaxy image with added noise can be injected directly into real images of blank (or less blank) sky from these surveys. 
+\subsection{Simple Stellar Populations}
+\subsubsection{Composite Stellar Populations}
+\subsection{Galaxy Properties}
+\subsubsection{Stellar Mass}
+\artpop{} allows the user to specify the number of stars to simulate, or a total mass, and draws a sample of stars from a Chabrier (2003) IMF (true?? \textcolor{red}{[Ava: I believe the default IMF is Kroupa. We could say here that ArtPop allows users to choose between Chabrier, Kroupa, and Salpeter IMFs, and then either say that we've chosen to use the default or give a rationale for choosing a different option.]}); here, we work primarily with stellar mass. When a magnitude limit is imposed, \artpop{} only draws individual stars for the fractional mass that should exist above the limit, and simulates the rest of the light of the galaxy as a smooth profile (e.g., Sersic \textcolor{red}{[Ava: Since there are only three built-in options for galaxy profiles I think we could follow whatever convention we choose for the IMF and potentially list S\'{e}rsic, Plummer, and Uniform and then state our choice.]}). We select magnitude limits in this work based on the surveys being used. 
+\subsubsection{Metallicity}
+Because \artpop{} is built on generating either single simple stellar populations (SSPs) or composite stellar populations (CSPs) comprised of multiple SSPs, users specify a single [Fe/H] for each SSP in their model. Stars are then drawn from isochrones at that metallicity (potentially interpolating where necessary).
+
+\subsection{Survey Properties \& Noise}
+Once an ideal galaxy image has been created, \artpop{} passes it through a module which applies the observing conditions, including sky brightness and PSF, and determining the size the galaxy should appear on the detector of the instrument being used to observe it based on its distance. 
+
+\subsection{Joint Priors}
+\code{} allows for the implementation of joint priors (that is, priors for which one parameter depends on the value of another parameter). In \code{}, we provide an optional, built in, joint prior based on the Mass-Metallicity Relation (MZR; \citealt{2005MNRAS.362...41G, 2013ApJ...779..102K}), but also demonstrate how one can implement any joint prior of choice. 
+
+\section{Silkscreen}
+Silkscreen\footnote{This name is a reference to the silkscreen process used by Andy Warhol to define the Pop Art movement.} combines \artpop{} for model generation with the SBI framework \sbi{}, implementing a custom convolutional neural network for the feature extraction in the simulation stage. Users set or select priors on the model properties (mass, distance, metallicity, position angle, Sérsic index, etc.), choosing tight priors for known quantities and flat priors for unknown properties. 
