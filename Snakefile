@@ -14,13 +14,22 @@ rule plotPal13:
     name="Pal13",
   script: "src/scripts/plot_gc.py"
 
-
-rule plotPal13:
+rule plotE29410:
   output: 'src/tex/figures/ESO_294_10_post_corner.pdf', 'src/tex/figures/ESO_294_10_ims_post.pdf'
   conda: "silkscreen.yml"
   params:
-    seed=102,
+    seed=103,
     name="ESO_294_10",
-    st=0.2,
-    Q=0.4
-  script: "src/scripts/plot_gc.py"
+    Q=0.4,
+    st=0.2
+  notebook: "src/scripts/plot_scul_dw.ipynb"
+
+  rule plotE41005:
+    output: 'src/tex/figures/ESO_410_05_post_corner.pdf', 'src/tex/figures/ESO_410_05_ims_post.pdf'
+    conda: "silkscreen.yml"
+    params:
+      seed=104,
+      name="ESO_410_05",
+      Q=0.4,
+      st=0.2
+    notebook: "src/scripts/plot_scul_dw.ipynb"
