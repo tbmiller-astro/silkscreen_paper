@@ -1,20 +1,15 @@
 rule plotPal4:
-  input:
-    "src/data/GCs/Pal4/fall_2023_V4_posterior_round_0.pt",
-    "src/data/GCs/Pal4/fall_2023_V4_posterior_round_1.pt",
-    "src/data/GCs/Pal4/fall_2023_V4_posterior_round_2.pt",
-    "src/data/GCs/Pal4/ra_dec.txt",
-    "src/data/GCs/Pal4/dist_param_dict.pt",
-    "src/data/GCs/Pal4/cutout.pt",
-    "src/data/GCs/Pal4/psfs.npy",
-    "src/data/GCs/Pal4/for_inj.npy",
-  output:
-    'src/tex/figures/Pal4_post_corner.pdf',
-    'src/tex/figures/Pal4_ims_post.pdf'
-  conda:
-    "silkscreen.yml"
+  output: 'src/tex/figures/Pal4_post_corner.pdf', 'src/tex/figures/Pal4_ims_post.pdf'
+  conda: "silkscreen.yml"
   params:
     seed=100,
     name="Pal4",
-  script:
-    "src/scripts/plot_gc.py"
+  script: "src/scripts/plot_gc.py"
+
+rule plotPal13:
+  output: 'src/tex/figures/Pal13_post_corner.pdf', 'src/tex/figures/Pal13_ims_post.pdf'
+  conda: "silkscreen.yml"
+  params:
+    seed=100,
+    name="Pal13",
+  script: "src/scripts/plot_gc.py"

@@ -26,7 +26,7 @@ for r in rounds:
     if r == 0:
         fig = corner.corner(post_list[r], plot_density = False, plot_datapoints = False, color = f'C{r}',fig = fig, labels=param_names)
     elif r == rounds[-1]:
-        corner.corner(post_list[r], plot_density = False, plot_datapoints = False, color = f'C{r}', fig = fig, show_titles= True,  labels=param_names)
+        corner.corner(post_list[r], plot_density = False, plot_datapoints = False, color = f'C{r}', fig = fig, show_titles= True,  labels=param_names, label_kwargs={'fontsize':17}, title_kwargs={'fontsize': 10})
     else:
         corner.corner(post_list[r], plot_density = False, plot_datapoints = False, color = f'C{r}', fig = fig,)
 ax_text = fig.axes[1]
@@ -40,7 +40,13 @@ fig.savefig(f'{paths.figures}/{name}_post_corner.pdf')
 
 #Simulate images from posterior
 ra,dec = np.loadtxt(gal_dir + 'ra_dec.txt')
-red_vec = silkscreen.utils.get_reddening(SkyCoord(ra,dec, unit = 'deg'), ['DECam_g','DECam_r', 'DECam_z'])
+try:
+    red_vec = silkscreen.utils.get_reddening(SkyCoord(ra,dec, unit = 'deg'), ['DECam_g','DECam_r', 'DECam_z'])
+except FileNotFoundError:
+    import dustmaps.sfd
+    dustmaps.sfd.fetch()
+    red_vec = silkscreen.utils.get_reddening(SkyCoord(ra,dec, unit = 'deg'), ['DECam_g','DECam_r', 'DECam_z'])
+
 psfs = np.load(gal_dir+'psfs.npy')
 psfs = psfs[:,31-15:31+15,31-15:31+15]
 
