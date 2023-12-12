@@ -85,6 +85,12 @@ To simulate dwarf galaxies we utilize the \artpop{} pacakge. \artpop{} generates
 The next important set of choices is how to parameterize the star formation and metalicity history. For this initial exploration we opt for a simple parameterization: As series of simple stellar populations with a fixed metalicity. The parameters and priors of this ``Default'' Dwarf galaxy model are summarized in Table~\ref{tab:dwarf_model}. These choice were informed by the analysis of SBF magnitude as a function of age presented in Greco et al. 2021 (REF). Particularly we wanted to allow for more flexibility for the younger population where the SBF magnitude varies quickly as function of age. For metallicity assume a mass-metallicity prior following Kirby et. al (REF) and keep it fixed between the 3 stellar populations. While this is not fully realistic, as the metallicity is known to increase with successive populations of stars, we opt for simplicity in this initial exploration.
 
 In order to produce mock images with realistic noise profiles we inject them into real data. Using \artpop{} we first render pristine, i.e. noise free, images that have been convolved to the PSF and pixel scale of the specified survey. Then we add Poisson noise before injecting these images into patches of real data. We do not pre-select "empty" regions as we want to pass the full distribution of data quality to the network such that it can produce realistic uncertainties.
+\begin{figure}
+    \centering
+    \includegraphics{figures/Pal4_post_corner.pdf}
+    \caption{Caption}
+    \label{fig:test}
+\end{figure}
 
 \begin{table*}
     \centering
