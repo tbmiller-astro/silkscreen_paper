@@ -12,8 +12,9 @@
 \title{Constraining the Distances and Physical Properties of Semiresolved Galaxies with Simulation Based Inference}
 
 \author[0000-0001-8367-6265]{Tim B. Miller}
-\affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
 \affiliation{Center for Interdisciplinary Exploration and Research in Astrophysics (CIERA), Northwestern University,1800 Sherman Ave, Evanston, IL 60201, USA}
+\affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
+
 \author{Imad Pasha}
 \affiliation{Department of Astronomy, Yale University, New Haven, CT 06511}
 
@@ -75,30 +76,95 @@ On the other hand, a ``one model to rule them all'' approach involves generating
 It worth noting that at no point is the task of model creation being entrusted to an neural network; rather, the relationship between model parameters and the generated images themselves is learned. 
 
 \section{The \code{} Framework}
-Basically this is combining simulation based inference with \artpop
-\subsection{Simulating Dwarf Galaxies}
-Mention that currently we have to use 'bespoke' simulations i.e. everything needs to be specified beforehand. Also mention the dwarf galaxy model and the simple stellar population model.
+\subsection{Simulating images Dwarf Galaxies}
+\label{sec:sfh}
+To simulate dwarf galaxies we utilize the \artpop{} pacakge. \artpop{} generates artificial images of dwarf galaxies ``from the ground up" by drawing stellar masses from an IMF, calculates luminosities using isochrones, draws positions for each start using a pre-defined brightness profile and then directly injects stars into an image before convolving with the PSF.
 
-\subsection{Simulation Based Inference}
-Need to discuss embedding net and sbi framework. Not sure how much detail to go into normalizing flows and explaining SBI here. Much of this information will probably go into the intro I imagine 
+\artpop is designed to be highly modular and flexible, meaning many types of systems can be generated but also many choices that must be made. For all the simulations shown here we use a Kroupa IMF (ref) and MIST  Isochrones simulated with rotation $v/v_{\rm crit} = 0.4$ (ref). In \artpop{} we specify a magnitude limit (using the \texttt{mag\_limit} keyword) for which to resolve individual stars. This saves massively on computing resources by rendering the many low luminosity stars as a smooth background. For our case the SBF signal is always dominated by bright giant stars (REF).  Unless otherwise specified we set the cutoff in the $r$ band at $27\ mag$ (XXX CHECK XXX).
 
-Mention t-SNPE here.
+The next important set of choices is how to parameterize the star formation and metalicity history. For this initial exploration we opt for a simple parameterization: As series of simple stellar populations with a fixed metalicity. The parameters and priors of this ``Default'' Dwarf galaxy model are summarized in Table~\ref{tab:dwarf_model}. These choice were informed by the analysis of SBF magnitude as a function of age presented in Greco et al. 2021 (REF). Particularly we wanted to allow for more flexibility for the younger population where the SBF magnitude varies quickly as function of age. For metallicity assume a mass-metallicity prior following Kirby et. al (REF) and keep it fixed between the 3 stellar populations. While this is not fully realistic, as the metallicity is known to increase with successive populations of stars, we opt for simplicity in this initial exploration.
+
+In order to produce mock images with realistic noise profiles we inject them into real data. Using \artpop{} we first render pristine, i.e. noise free, images that have been convolved to the PSF and pixel scale of the specified survey. Then we add Poisson noise before injecting these images into patches of real data. We do not pre-select "empty" regions as we want to pass the full distribution of data quality to the network such that it can produce realistic uncertainties.
+
+\begin{table*}
+    \centering
+    \caption{The parameters are priors for our default dwarf model parameterized as 3 SSPs with a fixed metallicity}
+    \small
+    \begin{tabular}{c c c} 
+        Parameter & Description & Prior \\  \hline \hline
+         D & Distance to galaxy (Mpc) & Uniform: $D_{\rm min}$ -  $D_{\rm max}$ (User Specified) \\
+         $\log (M_*/M_\odot)$ & Total Stellar Mass & Log-uniform: $M_{\rm*, min}$ -  $M_{\rm* , max}$ (User Specified) \\
+         $Z$ & Metallicity parameterized as [Fe/H] & Gaussian following Kirby et al. MZR with $\sigma = 0.255$ \\
+         $F_{y}$& Fraction of mass in the young population & Trunc. Norm.: $\mu=0$, $\sigma=0.05$ from $0-0.2$\\
+         $Age_{y}$& Age of the the young population (100 Myr) & Uniform: $0.5-5$\\
+         $F_{m}$& Fraction of mass in the medium population (Age = 2 Gyr) & Trunc. Norm.: $\mu=0.4$, $\sigma=0.2$ from $0-0.8$\\
+         $F_{o}$& Fraction of mass in the old population (Age = 12 Gyr) & Dependent on $F_{y}$ and $F_{m}$: 1 - $F_{y}$ - $F_{m}$\\ \hline  
+    \end{tabular}
+    \label{tab:dwarf_model}
+\end{table*}
+
+\subsection{Network Architecture}
+\label{sec:NN}
+To perform simulation based inference we use the \sbi{} python package {REF}. We use the Sequential Neural Posterior Estimate (SNPE) - C methodology to map data directly to the posterior. The network we us contains two components, an embedding network to extract summary statistics directly from images that is trained simultaneously to the normalizing flow model to predict the posterior distribution. 
+
+A normalizing flow is a series of learned bijective transforms which map a simple distribution (Often a multivariate normal) to any complex distribution. In this way normalizing flows ``learn'' any complex distributions, optionally conditioned on input parameters. These transforms are designed to be easily invertable and have tractable Jacobians such that can be be sampled from and trained easily. In simulation based inference, it is used to estimate the posterior distribution, given a set of input data. For \code{} we use a Neural Spline Flow (NSF) (REF) consisting of five transformations with 50 hidden features each, eight spline bins and dropout probability of 0.2 in the hidden layers.
+
+In simulation based inference it is common to use a set of summary statistics to describe the data. However in our case of inferring properties of dwarf galaxies it is unclear what the best summary statistics are or how to reliably extract them. As our input data is highly complex we combine the flow with and embedding network, that is trained alongside the flow, to distill the input images to a set of learned summary statistics.
+
+For this we use a Residual Neural networks (ResNets) (REF). Compared to traditional Convolutional Neural Networks (CNNs), ResNets include skip connections where the output of  a layer is added to the input. Compared to CNNs, they have veeb shown to be easier to optimize and allow for deeper networks without degradation. Our implementation is based on that in \texttt{torchvision}. It contains an initial convolution layer which maps any number of input filters to 16 channels proceeded by four segments. Each segments contains two bottleneck residual blocks with an increasing number of channels, 16,32 64 and 128 respectively. This is followed by an average pooling to 512 features and a fully connected layer resulting in the desired number of summary statistics.
+
+\subsection{Current Pipeline: Bespoke Simulations and Training}
+\label{sec:walkthrough}
+
+The current pipeline for inference with \code{} is tailored to each specific galaxy of interest. A number of observations need to be assembled. First and foremost cutouts of the galaxy in a set of filters, along with their PSFs. Then details about the telescope and survey like the average sky surface-brightness and exposure time ot accurately calculate the noise properties. Finally an estimate of the observed light distribution, the current supported parameterizations are Plummer or Sersic Profiles. This is all collected into a \texttt{SilkScreenObservation} class which can then be used for inference. 
+
+Next one must choose a parameterization for the star-formation history, and prior for the parameters. We provide routines to generate the default options discussed in section~\ref{sec:sfh} in the \texttt{silkscreen.simmers} and \texttt{silkscreen.priors} scripts respectively. While we have only started with these few defaults, since \artpop{} is highly modular and flexible, so is \code{} and we plan to add more options in the future.
+
+Then training the posterior estimation network is performed using the \sbi{} python package. Unless otherwise specified we train the network in three rounds restricting the prior each time following the Truncated Sequential Neural Posterior Estimation (TSNPE) method. (REF) This methodology uses the posterior of each successive round to truncate the prior and achieve more targeted simulations for a given observation. Unlike previous sequential methods it allows for simpler training and loss function by truncating the prior rather than having to compare to previous iterations of the posterior. Through experimentation we found including half the total simulation budget in the first round, drawn from the prior, and the splitting the other half among two successive rounds was successful. Unless otherwise specified in this paper we train the posterior estimator in three round with 50k, 25k and 25k simulations respectively.
+
+For training we use the AdamW optimizer and apply a learning rate of $2\times 10^{-4}$ for the flow part of the network and $1\times 10^{-6}$ to the embedding part of the posterior estimator network with a batch size of 150. After the initial round of training we lower each learning rate by a factor of 0.1. The weight decay is set to $10^{-4}$ for both sections of the network and we set the number of learned summary statistics to 16. Each round of training continues until the loss of a validation set (10\% of total data) fails to improve for 15 successive epochs. Before training the images are passed through arc-sinh normalization and then z-scoring, performed overall on all filters simultaneously to preserve color information. Similarly the parameters used to generate the simulations are z-scored. (XXX Double check all of these are correct XXX)
+
+To optimize all these hyper-parameters we use the \texttt{optuna} (REF) package applied to the test case shown in section~\ref{self-test}. As with many networks, we find the batch size and learning rates to be the most impactful hyperparameters. In particular we found de-coupling the learning rates of the flow and embedding network was crucial for reliable training. We discuss the choices made in the architecture of the network and hyperparameters in section\ref{sec:issues}.
 
 \section{Inference on a Mock Galaxy}
+\label{self-test}
 Talk about performing inference on a simulated galaxy. Show recovered posteriors along with SBC benchmarks showing a well behaved posterior
 
 \section{Example Applications}
 \subsection{Halo Globular Clusters}
+\label{sec:gc}
+As a first application to real data we apply \code{} to two halo globular clusters (GCs). They represent a useful case for \code{} as they are thought to be a relatively simple stellar populations, single aged and old and have well measured properties through alternative methods. We choose two GCs to test on, Palomar 4 and Palomar 13 for which we will be fitting to DeCALS survey data. These were choosen as they are both well studied GCs, lie within DeCALS, roughly follow Plummer profiles and crucially lie at vastly different differences. Palomar 14 has a known distance of roughly 100 kpc compared to Palomar 13 which lies much closer, 25 kpc from the sun. (REF) The difference between these two creates an ideal test case to ensure \code{} can infer different distances while all of the other variables (e.g. number of bands used, integration time, stellar population etc.) are kept constant.
+
+We use largely the same procedure as described in Section. \ref{sec:walkthrough} with a few minor tweaks. We use a single stellar population with uniform priors in distance, $\log M_*$, metallicity and age summarized in Table~\ref{tab:ssp_model}. Additionally we find a lower initial learning rate for the normalizing flow is warranted here, otherwise the training loss becomes very stochastic. We start at $2\times 10^{-5}$ for the initial round with the rest of the procedure following what is described in section~\ref{sec:NN}
+
+\begin{table*}
+    \centering
+    \caption{The parameters are priors for our SSP model parameterized used to model globular clusters}
+    \small
+    \begin{tabular}{c c c} 
+        Parameter & Description & Prior \\  \hline \hline
+         D & Distance to galaxy (kpc) & Uniform: $D_{\rm min}$ -  $D_{\rm max}$ (User Specified) \\
+         $\log (M_*/M_\odot)$ & Total Stellar Mass & Log-uniform: $M_{\rm*, min}$ -  $M_{\rm* , max}$ (User Specified) \\
+         $Z$ & Metallicity parameterized as [Fe/H] & Uniform: $-2.25-0.25$ \\
+         $Age$& Age of the the SSP (Gyr) & Uniform: $5-12$\\ \hline
+    \end{tabular}
+    \label{tab:ssp_model}
+\end{table*}
 \subsection{Dwarfs in the Sculptor Group}
+\label{sec:scul}
 \subsection{Galaxies in HSC}
+\label{sec:hsc}
 
 \section{Current Limitations and Pitfalls}
+\label{sec:issues}
 Oh so many things to discuss here: Paramterization of SFH, difficulty in training and producing well-calibrated posteriors, large computational cost of 'bespoke' galaxy models.
 
 \section{Future Outlook}
+\label{sec:future}
 First is a systematic benchmark of distances/stellar population properties against a known set of galaxies. Taking advantage of the amortization possibilities to build 'one model to rule them all' applicable to a whole survey etc. Honing in on stellar population properties of known galaxies with lots of data.
 
 \section{Summary}
+\label{sec:summary}
 Really cool idea that I think will be super useful but a lot of work left to do.
 
 \section*{Acknowledgements}
