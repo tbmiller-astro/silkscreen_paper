@@ -80,7 +80,7 @@ It worth noting that at no point is the task of model creation being entrusted t
 \label{sec:sfh}
 To simulate dwarf galaxies we utilize the \artpop{} pacakge. \artpop{} generates artificial images of dwarf galaxies ``from the ground up" by drawing stellar masses from an IMF, calculates luminosities using isochrones, draws positions for each start using a pre-defined brightness profile and then directly injects stars into an image before convolving with the PSF.
 
-\artpop is designed to be highly modular and flexible, meaning many types of systems can be generated but also many choices that must be made. For all the simulations shown here we use a Kroupa IMF (ref) and MIST  Isochrones simulated with rotation $v/v_{\rm crit} = 0.4$ (ref). In \artpop{} we specify a magnitude limit (using the \texttt{mag\_limit} keyword) for which to resolve individual stars. This saves massively on computing resources by rendering the many low luminosity stars as a smooth background. For our case the SBF signal is always dominated by bright giant stars (REF).  Unless otherwise specified we set the cutoff in the $r$ band at $27\ mag$ (XXX CHECK XXX).
+\artpop{} is designed to be highly modular and flexible, meaning many types of systems can be generated but also many choices that must be made. For all the simulations shown here we use a Kroupa IMF (ref) and MIST  Isochrones simulated with rotation $v/v_{\rm crit} = 0.4$ (ref). In \artpop{} we specify a magnitude limit (using the \texttt{mag\_limit} keyword) for which to resolve individual stars. This saves massively on computing resources by rendering the many low luminosity stars as a smooth background. For our case the SBF signal is always dominated by bright giant stars (REF).  Unless otherwise specified we set the cutoff in the $r$ band at $27\ mag$ (XXX CHECK XXX).
 
 The next important set of choices is how to parameterize the star formation and metalicity history. For this initial exploration we opt for a simple parameterization: As series of simple stellar populations with a fixed metalicity. The parameters and priors of this ``Default'' Dwarf galaxy model are summarized in Table~\ref{tab:dwarf_model}. These choice were informed by the analysis of SBF magnitude as a function of age presented in Greco et al. 2021 (REF). Particularly we wanted to allow for more flexibility for the younger population where the SBF magnitude varies quickly as function of age. For metallicity assume a mass-metallicity prior following Kirby et. al (REF) and keep it fixed between the 3 stellar populations. While this is not fully realistic, as the metallicity is known to increase with successive populations of stars, we opt for simplicity in this initial exploration.
 
@@ -107,11 +107,11 @@ In order to produce mock images with realistic noise profiles we inject them int
 \label{sec:NN}
 To perform simulation based inference we use the \sbi{} python package {REF}. We use the Sequential Neural Posterior Estimate (SNPE) - C methodology to map data directly to the posterior. The network we us contains two components, an embedding network to extract summary statistics directly from images that is trained simultaneously to the normalizing flow model to predict the posterior distribution. 
 
-A normalizing flow is a series of learned bijective transforms which map a simple distribution (Often a multivariate normal) to any complex distribution. In this way normalizing flows ``learn'' any complex distributions, optionally conditioned on input parameters. These transforms are designed to be easily invertable and have tractable Jacobians such that can be be sampled from and trained easily. In simulation based inference, it is used to estimate the posterior distribution, given a set of input data. For \code{} we use a Neural Spline Flow (NSF) (REF) consisting of five transformations with 50 hidden features each, eight spline bins and dropout probability of 0.2 in the hidden layers.
+A normalizing flow is a series of learned bijective transforms which map a simple distribution (Often a multivariate normal) to any complex distribution. In this way normalizing flows are used to represent any complex distributions, optionally conditioned on input parameters. These transforms are designed to be easily invertable and have tractable Jacobians such that can be be sampled from and trained easily. In simulation based inference, it is used to estimate the posterior distribution, given a set of input data. For \code{} we use a Neural Spline Flow (NSF) (REF) consisting of five transformations with 50 hidden features each, eight spline bins and dropout probability of 0.2 in the hidden layers.
 
-In simulation based inference it is common to use a set of summary statistics to describe the data. However in our case of inferring properties of dwarf galaxies it is unclear what the best summary statistics are or how to reliably extract them. As our input data is highly complex we combine the flow with and embedding network, that is trained alongside the flow, to distill the input images to a set of learned summary statistics.
+In simulation based inference it is common to use a set of summary statistics to describe the data. These are what the network uses to describe the posterior. In our case, using high dimensional data, it unclear what summary statistics should be used. While we could extract observable, such as magnitudes, colors and SBF in all the bands, it is unclear if these are optimal for constraining the properties  of galaxies and are likely missing information present. Instead we opt to learn these summary statistics directly from the data using an embedding network. This is an additional module of the network that distills the original data, in our case the images in multiple bands, down to summary statistics which are then used to predict the posterior using the flow. These two module are trained simultaneously and therefore optimally extract information.
 
-For this we use a Residual Neural networks (ResNets) (REF). Compared to traditional Convolutional Neural Networks (CNNs), ResNets include skip connections where the output of  a layer is added to the input. Compared to CNNs, they have veeb shown to be easier to optimize and allow for deeper networks without degradation. Our implementation is based on that in \texttt{torchvision}. It contains an initial convolution layer which maps any number of input filters to 16 channels proceeded by four segments. Each segments contains two bottleneck residual blocks with an increasing number of channels, 16,32 64 and 128 respectively. This is followed by an average pooling to 512 features and a fully connected layer resulting in the desired number of summary statistics.
+For our embedding network we use a Residual Neural networks (ResNets) (REF). Compared to traditional Convolutional Neural Networks (CNNs), ResNets include skip connections where the output of  a layer is added to the input. Compared to CNNs, they have been shown to be easier to optimize and allow for deeper networks without degradation of generalizability . Our implementation is based on that in \texttt{torchvision}. It contains an initial convolution layer which maps any number of input filters to 16 channels proceeded by four segments. Each segments contains two bottleneck residual blocks with an increasing number of channels, 16,32 64 and 128 respectively. This is followed by an average pooling to 512 features and a fully connected layer resulting in the desired number of summary statistics.
 
 \subsection{Current Pipeline: Bespoke Simulations and Training}
 \label{sec:walkthrough}
@@ -124,7 +124,7 @@ Then training the posterior estimation network is performed using the \sbi{} pyt
 
 For training we use the AdamW optimizer and apply a learning rate of $2\times 10^{-4}$ for the flow part of the network and $1\times 10^{-6}$ to the embedding part of the posterior estimator network with a batch size of 150. After the initial round of training we lower each learning rate by a factor of 0.1. The weight decay is set to $10^{-4}$ for both sections of the network and we set the number of learned summary statistics to 16. Each round of training continues until the loss of a validation set (10\% of total data) fails to improve for 15 successive epochs. Before training the images are passed through arc-sinh normalization and then z-scoring, performed overall on all filters simultaneously to preserve color information. Similarly the parameters used to generate the simulations are z-scored. (XXX Double check all of these are correct XXX)
 
-To optimize all these hyper-parameters we use the \texttt{optuna} (REF) package applied to the test case shown in section~\ref{self-test}. As with many networks, we find the batch size and learning rates to be the most impactful hyperparameters. In particular we found de-coupling the learning rates of the flow and embedding network was crucial for reliable training. We discuss the choices made in the architecture of the network and hyperparameters in section\ref{sec:issues}.
+To optimize all these hyper-parameters we use the \texttt{optuna} (REF) package applied to the test case shown in section~\ref{self-test}. As with many different applications, we find the batch size and learning rates to be the most impactful hyper-parameters. For batch size we explore the range of 8-256 and find the optimal range is 100-200. For learning rate we found decoupling the learning rates of the flow and embedding network was crucial for reliable training. For both we explore in log space from $10^{-7}$ to $10^{-2}$. We find the optimal learning rate for the embedding network to be lower, around $10^{-6}$ and the learning rate for flow section of the network at least an order of magnitude high. We also varied the strength of the weight decay and number of summary statistics but found they made little difference. We discuss the choices made in the architecture of the network and hyperparameters in section\ref{sec:issues}.
 
 \section{Inference on a Mock Galaxy}
 \label{sec:self-test}
@@ -134,8 +134,19 @@ To optimize all these hyper-parameters we use the \texttt{optuna} (REF) package 
     \includegraphics[width = 0.75\textwidth]{figures/self_test_post_corner.pdf}
     \caption{Plotting the results of an injection-recovery test. Seems to be pretty good although it is a little too confident about the stellar population parameters}
     \script{plot_self_test.ipynb}
-    \label{fig:self_test_post}
+    \label{fig:self_test}
 \end{figure*}
+
+
+As an initial test of \code{} framework we perform an injection recovery test. For the observations we use the real-world example of the DeCALS survey (cite). The images of the galaxy is simulated in three bands ($g$,$r$,$z$) using representative exposure times (40 min, 40 min and 60 min (XXX CHECK XXX) respectively), sky brightnesses ( XXX ADD XX), real PSFs in each band. It is injected into a real image downloaded from Sky Server at RA=XX,DEC=XXX, nearby the Sculptor galaxy group. The data we use is the same as described in Sec.\ref{sec:scul}.
+
+For this test we simulate a dwarf galaxy at a distance of 7 Mpc, with $\log M_*/M_\odot = 7.5$, with the stellar population parameters drawn from the priors listed in Tab.\ref{tab:dwarf_model}. We run the inference framework described in Sec.~\ref{sec:walkthrough} with a the prior described in Tab.~\ref{tab:dwarf_model} with $D_{\rm min} = 5$ Mpc, $D_{\rm max} = 10$ Mpc, $\log M_{*, \rm min} = 7$ and  $\log M_{*, \rm min} = 8$. Note that this setup was also used to tune the hyper-parameters of the training procedure described in Sec.~\ref{sec:NN}.
+
+The results of the inference procedure are shown in Figure~\ref{fig:self_test}. RGB image of the "target" simulated galaxy along with simulated images from prior draws and Final round of the posterior are shown. The images of the prior draws show a wide range of colors and  brightnesses that, by eye, do not match the  target galaxy. Where as those form the posterior show similar visual characteristics to the target galaxy. This posterior predictive analysis serves as a baseline check that the network is successfully learning the information to produce galaxies that by eye, look like the target.
+
+The Prior distribution along with the posteriors after each of the three rounds of simulation and training are compared to the known truths in Fig.~\ref{fig:self_test}. Looking at the joint $\log M_*$-distance distribution we see large band after the first round of simulation and training that with little constraints on the distance and weak constraints on the mass. We speculate that this represents constraints on the total magnitude and color. Whereas in subsequent rounds, when targeted simulations are used in the training, the network is likely learning more derailed properties leading to better constraints on the distance and therefore mass.
+
+For the stellar population properties we see the posterior distributions closely mimic the prior suggesting that we are not gaining any new insight into these properties. In this scenario it is maybe not surprising given the data quality and use of only 3 bands. We see that marginalizing over these is still important. Specifically the age of the young population is covariant with the distance. It appears that the details of the stellar populations, especially that with age $< 1Gyr$ is driving the uncertainty in the distance.
 
 \begin{figure}
     \centering
@@ -145,18 +156,16 @@ To optimize all these hyper-parameters we use the \texttt{optuna} (REF) package 
     \label{fig:self_test_sbc}
 \end{figure}
 
-Talk about performing inference on a simulated galaxy. Show recovered posteriors along with SBC benchmarks showing a well behaved posterior
+While the posterior predictive checks discussed above important asses if the inference algorithm is producing seemingly realistic results, we still must ensure the posterior is well calibrated. That is to assess if the uncertainties are under or over confident. For this we turn to simulation based calibration (SBC) (REFS). In short SBC involves drawing a set of parameters from the prior, $\theta_{\rm SBC, turth}$, and then simulating observations $x_{\rm SBC}$ before running the inference algorithm to obtain L samples from the posterior distribution: $\theta_{\rm SBC, infer}$. For each variable the rank is recorded, that is where among an order list of $\theta_{\rm SBC, infer}$ does $\theta_{\rm SBC, truth}$ lie. Talts et al (REF) showt hat the distribution of these ranks for each variable should be uniform over the range $0 - L$ for a well calibrated posterior. Additional by plotting the histogram of ranks we can learn about how the posterior is biased.
+
+Using the implementation of SBC within the \texttt{sbi} python package we calculate the rank statistics for the Round 1 posterior using 500 (CHECK XXX) draws from the prior and L = 1000 posterior draws for each sample. Figure~\ref{fig:self_test_sbc} displays the distributions of rank statistics for each variable. For each variables there is no deviation from a uniform distribution indicating a well-calibrated posterior.
 
 \section{Example Applications}
 \subsection{Halo Globular Clusters}
 \label{sec:gc}
-As a first application to real data we apply \code{} to two halo globular clusters (GCs). They represent a useful case for \code{} as they are thought to be a relatively simple stellar populations, single aged and old and have well measured properties through alternative methods. We choose two GCs to test on, Palomar 4 and Palomar 13 for which we will be fitting to DeCALS survey data. These were choosen as they are both well studied GCs, lie within DeCALS, roughly follow Plummer profiles and crucially lie at vastly different differences. Palomar 14 has a known distance of roughly 100 kpc compared to Palomar 13 which lies much closer, 25 kpc from the sun. (REF) The difference between these two creates an ideal test case to ensure \code{} can infer different distances while all of the other variables (e.g. number of bands used, integration time, stellar population etc.) are kept constant.
-
-We use largely the same procedure as described in Section. \ref{sec:walkthrough} with a few minor tweaks. We use a single stellar population with uniform priors in distance, $\log M_*$, metallicity and age summarized in Table~\ref{tab:ssp_model}. Additionally we find a lower initial learning rate for the normalizing flow is warranted here, otherwise the training loss becomes very stochastic. We start at $2\times 10^{-5}$ for the initial round with the rest of the procedure following what is described in section~\ref{sec:NN}
-
 \begin{table*}
     \centering
-    \caption{The parameters are priors for our SSP model parameterized used to model globular clusters}
+    \caption{The parameters are priors for our SSP model used to model globular clusters}
     \small
     \begin{tabular}{c c c} 
         Parameter & Description & Prior \\  \hline \hline
@@ -167,6 +176,7 @@ We use largely the same procedure as described in Section. \ref{sec:walkthrough}
     \end{tabular}
     \label{tab:ssp_model}
 \end{table*}
+
 
 \begin{figure*}
     \centering
@@ -180,9 +190,19 @@ We use largely the same procedure as described in Section. \ref{sec:walkthrough}
     \label{fig:GCs}
 \end{figure*}
 
+As a first application to real data we apply \code{} to two globular clusters (GCs) in the Milky Way halo. They represent a useful test case they are thought to be a relatively simple stellar populations (i.e. a single aged, old population) and have well measured properties through alternative methods. We choose two GCs in the outer halo to run \code{} inference on: Palomar 4 and Palomar 13. Again we will be utilizing DeCALS survey data with $g$, $r$ and $z$ bands. These were choosen as they are both well studied GCs, lie within DeCALS, roughly follow Plummer profiles and crucially lie at vastly different differences. Palomar 14 has a known distance of roughly 100 kpc compared to Palomar 13 which lies at much closer distance, 25 kpc. (REF) The difference between these two creates an ideal test case to ensure \code{} can infer different distances while all of the other variables such as telescope, observational systematics and stellar populations are similar.
+
+We use largely the same procedure as described in Section. \ref{sec:walkthrough} with a few minor tweaks. Instead of the default dwarf prior discussed in Sec.~\ref{sec:sfh} we use a single stellar population (SSP) with uniform priors in distance, $\log M_*$, metallicity and age summarized in Table~\ref{tab:ssp_model}. Additionally we find a lower initial learning rate for the normalizing flow is warranted here, otherwise the training and validation losses become very stochastic leading to posteriors that are not well-calibrated. We start at $2\times 10^{-5}$ for the initial round with the rest of the procedure following what is described in section~\ref{sec:NN}.
+
+The posterior distributions and posterior predictive checks for both GCs are displayed in Figure~\ref{fig:GCs}. First focusing on Pal4, the posterior predictive checks show images from the posterior that appear similar to the observed image. We find that the inferred distance of $100^{+6}_{-5}$ kpc to be in great agreement from that of Frank et al 2012, who use HST WFPC2 data to model the CMD and measure a distance of $102.8 \pm 2.4$ kpc. For stellar population we find a metallicity of $[Fe/H] = -1.13 ^{+0.18}_{-0.17}$ and an age of $7.78 \pm 1.34$ Gyr. Comparing to the previously measure values of $[Fe/H] = -1.41$ (Koch and Cote 2010 REF) and $11 \pm 1$ Gyr (Frank et al. 2012 REF) we find some mild tension, with agreement at the 1.5-2$\sigma$ level. Analyzing the joint [Fe/H] - age posterior distribution we see it is strongly covariant, with the literature values lying within the direction of covariance.
+
+For Pal13, in contrast, we observe some issues with the inference. The posterior predictive images look qualitatively different to the observations. Specifically the posterior predictive images fail to produce the same number of bright blue stars and the average color of the stars appears to be bluer. While the distance is qualitatively similar, i.e. much closer to the sun than Pal4, quantitatively the \code{} derived distance, $32.7^{+2.3}_{-2.5}$ kpc, varies by $XYZ \sigma$ from the known literature value of 25 kpc. The \code{} derived age is also biased young, $< 7$ Gyr, where as Pal 13, similar ot other GC systems is thought to be old $>12 Gyr$.
+
+We suspect that these difference are caused by a mismatch between the MIST isochrones used in \artpop{} and the known high population of blue stragglers in Pal13.( XXX ref clark et al 2012, cote et al. 2002) Blue stragglers, observed to be bluer than the main sequence turn-off, are thought to be the results of binary interactions. This high frequency of binary populations is not well characterized by the MIST isochrones and cannot match the bright blue stellar population. We suspect \code{} in turn infers a lower age in order to account for the population of bluer stars, additionally biasing the inference of the other parameters. Despite these issues it is encouraging that \code{} still qualitatively infers the correct difference in distance between Pal4 and Pal13. This provides a cautionary reminder that in simulation based inference, the inference is only as good as the simulator, and in this case there is likely a mismatch between the isochrones and the stellar population of Pal13.
 
 \subsection{Dwarfs in the Sculptor Group}
 \label{sec:scul}
+Next we apply \code{} to a set of well studied dwarf galaxies at distance of less than 5 Mpc in the field of the Sculptor galaxy. We focus on 4 galaxies: ESO 294-10, ESO 410-05, ESO 540-32 and ESO 349-31 which all have TRGB measurements from HST imaging (XXX ref Delcanton and De Costa).
 
 \begin{figure*}
     \centering
@@ -195,7 +215,17 @@ We use largely the same procedure as described in Section. \ref{sec:walkthrough}
     \label{fig:sdw_2mpc}
 \end{figure*}
 
-
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/ESO_349_31_post_corner.pdf}
+    \includegraphics[width=0.3\textwidth]{figures/ESO_349_31_ims_post.pdf}
+    \includegraphics[width=0.5\textwidth]{figures/ESO_540_32_post_corner.pdf}
+    \includegraphics[width=0.3\textwidth]{figures/ESO_540_32_ims_post.pdf}
+    \caption{Inference on two galaxies in the sculptor group, ESO 294-010 on top and ESO 410-005 on the bottom. In general really good agreement with other measurements and the images from the posterior, by eye, look a lot like the observed images. I'm not sure whether to include the stellar masses. We are biased a little low but that could be chocked up to some normalization issues that we should look into.}
+    \script{plot_scul_dw.ipynb}
+    \label{fig:sdw_3mpc}
+    
+\end{figure*}
 \subsection{Galaxies in HSC}
 \label{sec:hsc}
 
