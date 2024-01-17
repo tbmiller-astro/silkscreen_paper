@@ -34,6 +34,26 @@ rule plotE41005:
     st=0.2
   notebook: "src/scripts/plot_scul_dw.ipynb"
 
+rule plotE54032:
+  output: 'src/tex/figures/ESO_540_32_post_corner.pdf', 'src/tex/figures/ESO_540_32_ims_post.pdf'
+  conda: "silkscreen.yml"
+  params:
+    seed=107,
+    name="ESO_540_32",
+    Q=0.1,
+    st=0.1
+  notebook: "src/scripts/plot_scul_dw.ipynb"
+
+rule plotE34931:
+  output: 'src/tex/figures/ESO_349_31_post_corner.pdf', 'src/tex/figures/ESO_349_31_ims_post.pdf'
+  conda: "silkscreen.yml"
+  params:
+    seed=108,
+    name="ESO_349_31",
+    Q=0.2,
+    st=0.2
+  notebook: "src/scripts/plot_scul_dw.ipynb"
+
 rule plot_self_test:
   output: 'src/tex/figures/self_test_post_corner.pdf', 'src/tex/figures/self_test_ims.pdf','src/tex/figures/self_test_sbc.pdf'
   conda: "silkscreen.yml"
